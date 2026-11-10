@@ -14,17 +14,18 @@ On the sample, Leak finds 12 subscriptions costing $2,938 a year, $516 a year sp
 2. **Extract.** Qwen 3.5 35B reads the statement and returns the recurring charges and bank fees as JSON.
 3. **Research.** DeepSeek V4 Flash uses Otari's web search and fetch to find each service's price today and its official cancel page, four services per request, in parallel.
 4. **Add it up.** The app's own Python runs in Otari's code sandbox, so the headline numbers are arithmetic, not a model's guess.
-5. **Show the work.** The page streams each step, and a "What Otari did" panel lists every request as the gateway reported it: model, provider, fallback, guardrail verdict, member budget, cost, searches and the Python it ran.
+5. **Show the work.** A live "glass box" map lights up each Otari feature as it runs; click a node to see every request as the gateway reported it: model, provider, fallback, guardrail verdict, member budget, cost, searches and the Python it ran. "What the AI saw" shows the statement exactly as it was sent, identifiers stamped out.
+6. **Plug the leaks.** Each subscription is a card with a keep/plug switch; overlapping services start plugged and the yearly savings counter rolls as you flip them. For anything you plug, Ministral 8B writes the cancellation message, or a fee-refund request to the bank.
 
 ## Otari features, and where they run
 
 | Feature | How Leak uses it | Code |
 | --- | --- | --- |
-| Open-weight models, two roles | Qwen 3.5 35B extracts; DeepSeek V4 Flash researches | [`src/lib/otari.ts`](src/lib/otari.ts) `MODELS` |
+| Open-weight models, three roles | Qwen 3.5 35B extracts; DeepSeek V4 Flash researches; Ministral 8B writes cancellations | [`src/lib/otari.ts`](src/lib/otari.ts) `MODELS`, [`src/app/api/draft/route.ts`](src/app/api/draft/route.ts) |
 | Web search and fetch | Today's prices and cancel pages | [`src/lib/pipeline.ts`](src/lib/pipeline.ts) `researchBatch` |
 | Code execution | Totals, overlaps and price rises computed in Otari's sandbox | `runCode` in `otari.ts`, `totalsProgram` in `pipeline.ts` |
 | Guardrails | A PII guardrail mandated on the workspace blocks any statement that still carries an account number. The "skip stripping" switch on the page shows it | `otariError` in `otari.ts`, banner in [`src/app/page.tsx`](src/app/page.tsx) |
-| Per-user budgets | Each household member (Alex, Sam, Jordan) is an end user of a service key, with a daily budget of their own | `member()` in `pipeline.ts` |
+| Per-user budgets | Each household member (Alex, Sam, Jordan) is an end user of a service key, with a daily budget of their own, shown as an allowance meter | `member()` in `pipeline.ts`, [`src/app/api/members/route.ts`](src/app/api/members/route.ts) |
 | Budgets and spending limits | A spend ceiling on the app's key; a per-visitor run limit on the public demo | Otari dashboard, [`src/app/api/analyze/route.ts`](src/app/api/analyze/route.ts) |
 | Routing and fallbacks | The extract step calls the `leak-extract` failover policy (Qwen, then GPT-OSS 20B) | `OTARI_EXTRACT_MODEL` in `otari.ts` |
 
@@ -44,6 +45,7 @@ npm run dev
 | `OTARI_SERVICE_KEY` | no | A service key with an end-user budget, for per-member budgets |
 | `OTARI_EXTRACT_MODEL` | no | A routing policy name for the extract step, e.g. `leak-extract` |
 | `OTARI_RESEARCH_MODEL` | no | Defaults to `deepseek/deepseek-v4-flash` |
+| `OTARI_DRAFT_MODEL` | no | Defaults to `mistralai/ministral-3-8b` |
 | `LEAK_RUNS_PER_HOUR` | no | Runs per visitor per hour on a public deploy (default 6) |
 
 ## Notes from building on hosted Otari

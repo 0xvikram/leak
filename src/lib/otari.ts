@@ -8,6 +8,7 @@ export const OTARI_BASE_URL = "https://otari.ai/api/v1";
 export const MODELS = {
   extract: process.env.OTARI_EXTRACT_MODEL ?? "alibaba/qwen-3.5-35b-a3b",
   research: process.env.OTARI_RESEARCH_MODEL ?? "deepseek/deepseek-v4-flash",
+  draft: process.env.OTARI_DRAFT_MODEL ?? "mistralai/ministral-3-8b",
 };
 
 let client: OpenAI | null = null;

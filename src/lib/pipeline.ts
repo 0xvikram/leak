@@ -31,7 +31,7 @@ export type Totals = {
 
 export type StepEvent =
   | { type: "step"; id: string; label: string; status: "running" | "done" | "skipped" | "failed"; detail?: string }
-  | { type: "redaction"; removed: Record<string, number>; preview: string }
+  | { type: "redaction"; removed: Record<string, number>; text: string; skipped: boolean }
   | { type: "charges"; charges: Charge[] }
   | { type: "research"; research: Research[] }
   | { type: "totals"; totals: Totals }
@@ -57,7 +57,7 @@ function member(opts: RunOptions) {
 export async function analyze(statement: string, opts: RunOptions, emit: Emit) {
   // 1. Strip account identifiers. Skipping it is the demo of Otari's guardrail catching what leaks.
   const { text, removed } = opts.skipRedaction ? { text: statement, removed: {} } : redact(statement);
-  emit({ type: "redaction", removed, preview: text.split("\n").slice(0, 4).join("\n") });
+  emit({ type: "redaction", removed, text, skipped: Boolean(opts.skipRedaction) });
 
   // 2. Extract recurring charges and fees: the small model, behind a fallback policy.
   emit({ type: "step", id: "extract", label: "Finding recurring charges and fees", status: "running" });

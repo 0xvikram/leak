@@ -1,37 +1,48 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AiSaw } from "@/components/AiSaw";
+import { CountUp } from "@/components/CountUp";
+import { Household, type Member } from "@/components/Household";
+import { LeakCards, monthlyCost } from "@/components/LeakCards";
+import { Pipeline, type NodeState, type PipelineNode } from "@/components/Pipeline";
 import type { OtariTrace } from "@/lib/otari";
 import type { Charge, Research, StepEvent, Totals } from "@/lib/pipeline";
 import { SAMPLE_STATEMENT } from "@/lib/sample-statement";
 
 type Step = Extract<StepEvent, { type: "step" }>;
 type RunError = Extract<StepEvent, { type: "error" }>;
-
-const MEMBERS = [
-  { id: "alex", label: "Alex" },
-  { id: "sam", label: "Sam" },
-  { id: "jordan", label: "Jordan (teen)" },
-];
+type Redaction = Extract<StepEvent, { type: "redaction" }>;
 
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const cents = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 export default function Home() {
   const [statement, setStatement] = useState("");
+  const [sent, setSent] = useState("");
   const [member, setMember] = useState("alex");
   const [skipRedaction, setSkipRedaction] = useState(false);
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<Record<string, Step>>({});
-  const [redaction, setRedaction] = useState<Record<string, number> | null>(null);
+  const [redaction, setRedaction] = useState<Redaction | null>(null);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [research, setResearch] = useState<Research[]>([]);
   const [totals, setTotals] = useState<Totals | null>(null);
   const [traces, setTraces] = useState<OtariTrace[]>([]);
   const [errors, setErrors] = useState<RunError[]>([]);
+  const [plugged, setPlugged] = useState<Set<string>>(new Set());
+  const [members, setMembers] = useState<{ configured: boolean; members: Member[] }>({ configured: false, members: [] });
   const resultsRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  function reset() {
+  const loadMembers = useCallback(() => {
+    fetch("/api/members")
+      .then((r) => r.json())
+      .then(setMembers)
+      .catch(() => {});
+  }, []);
+  useEffect(loadMembers, [loadMembers]);
+
+  async function run() {
     setSteps({});
     setRedaction(null);
     setCharges([]);
@@ -39,12 +50,10 @@ export default function Home() {
     setTotals(null);
     setTraces([]);
     setErrors([]);
-  }
-
-  async function run() {
-    reset();
+    setPlugged(new Set());
+    setSent(statement);
     setRunning(true);
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -69,92 +78,138 @@ export default function Home() {
       }
     } finally {
       setRunning(false);
+      loadMembers();
     }
   }
 
   function handle(e: StepEvent) {
     if (e.type === "step") setSteps((s) => ({ ...s, [e.id]: e }));
-    else if (e.type === "redaction") setRedaction(e.removed);
+    else if (e.type === "redaction") setRedaction(e);
     else if (e.type === "charges") setCharges(e.charges);
     else if (e.type === "research") setResearch(e.research);
-    else if (e.type === "totals") setTotals(e.totals);
     else if (e.type === "trace") setTraces((t) => [...t, e.trace]);
     else if (e.type === "error") setErrors((x) => [...x, e]);
+    else if (e.type === "totals") {
+      setTotals(e.totals);
+      // Start with the overlapping services already plugged: the obvious savings, ready to keep or undo.
+      setPlugged(new Set(e.totals.overlaps.flatMap((o) => o.services.filter((s) => s !== o.keep))));
+    }
   }
 
-  const savings = totals
-    ? totals.overlaps.reduce((a, o) => a + o.yearlyWaste, 0) + totals.feesYearly
-    : 0;
-  const otariCost = traces.reduce((a, t) => a + t.costUsd, 0);
-  const researchFor = useMemo(() => {
-    const map = new Map(research.map((r) => [r.service.toLowerCase(), r]));
-    return (service: string) => map.get(service.toLowerCase());
-  }, [research]);
+  const addTrace = useCallback(
+    (t: OtariTrace) => {
+      setTraces((x) => [...x, t]);
+      loadMembers();
+    },
+    [loadMembers],
+  );
+
+  const toggle = (service: string) =>
+    setPlugged((p) => {
+      const next = new Set(p);
+      if (next.has(service)) next.delete(service);
+      else next.add(service);
+      return next;
+    });
+
+  const yearlySaved = useMemo(
+    () => charges.filter((c) => !c.isFee && plugged.has(c.service)).reduce((a, c) => a + monthlyCost(c) * 12, 0),
+    [charges, plugged],
+  );
+
   const blocked = errors.find((e) => e.code === "guardrail_violation");
-  const started = Object.keys(steps).length > 0 || errors.length > 0;
+  const budgetOut = errors.find((e) => /budget/i.test(e.code));
+  const nodes = useMemo(
+    () => buildNodes({ steps, traces, errors, redaction, running }),
+    [steps, traces, errors, redaction, running],
+  );
+  const started = running || Object.keys(steps).length > 0 || errors.length > 0;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <header className="mb-8">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">Leak</h1>
-          <span className="text-sm text-muted">built on Mozilla&apos;s Otari, open-weight models only</span>
+    <main className="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="num text-4xl font-semibold tracking-[0.35em] sm:text-5xl">
+            LEAK<span className="text-accent">.</span>
+          </h1>
+          <p className="mt-3 max-w-xl text-lg text-muted">
+            Find the money quietly draining out of your bank account, and plug it. Your account numbers never reach a model.
+          </p>
         </div>
-        <p className="mt-2 max-w-2xl text-lg text-muted">
-          Drop in a bank statement. See every subscription and hidden fee, what it costs you a year, and how to cancel it.
-          Account numbers are removed before any model sees them.
-        </p>
+        <div className="flex flex-col items-end gap-1 text-xs text-muted">
+          <span className="rounded-full border border-line px-3 py-1">open-weight models only</span>
+          <span>
+            through{" "}
+            <a href="https://otari.ai" target="_blank" rel="noreferrer" className="text-foreground underline decoration-line underline-offset-4">
+              Mozilla&apos;s Otari
+            </a>
+          </span>
+        </div>
       </header>
 
-      <section className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <label htmlFor="statement" className="font-medium">
-            Bank statement (CSV or pasted text)
-          </label>
-          <button
-            type="button"
-            onClick={() => setStatement(SAMPLE_STATEMENT)}
-            className="rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-background"
-          >
-            Use the sample statement
-          </button>
-        </div>
-        <textarea
-          id="statement"
-          value={statement}
-          onChange={(e) => setStatement(e.target.value)}
-          placeholder="Date,Description,Amount&#10;2026-10-05,NETFLIX.COM,-17.99"
-          className="h-40 w-full resize-y rounded-xl border border-line bg-background p-3 font-mono text-xs leading-relaxed outline-none focus:border-accent"
-        />
-        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <fieldset className="flex items-center gap-2">
-            <legend className="sr-only">Whose budget</legend>
-            <span className="text-sm text-muted">Running as</span>
-            {MEMBERS.map((m) => (
+      <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_340px]">
+        <div className="rounded-2xl border border-line bg-surface/80 p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="statement" className="text-sm text-muted">
+              Bank statement, CSV or pasted text
+            </label>
+            <div className="flex gap-2">
               <button
-                key={m.id}
                 type="button"
-                onClick={() => setMember(m.id)}
-                aria-pressed={member === m.id}
-                className={`rounded-full border px-3 py-1 text-sm ${
-                  member === m.id ? "border-accent bg-accent-soft text-accent" : "border-line"
-                }`}
+                onClick={() => fileRef.current?.click()}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs hover:border-muted"
               >
-                {m.label}
+                Open a CSV
               </button>
-            ))}
-          </fieldset>
-          <label className="flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" checked={skipRedaction} onChange={(e) => setSkipRedaction(e.target.checked)} />
-            Skip account-number stripping (test Otari&apos;s guardrail)
+              <button
+                type="button"
+                onClick={() => setStatement(SAMPLE_STATEMENT)}
+                className="rounded-lg border border-accent/50 px-3 py-1.5 text-xs text-accent hover:bg-accent-soft"
+              >
+                Try the sample
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.txt,text/csv,text/plain"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setStatement(await f.text());
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
+          <textarea
+            id="statement"
+            value={statement}
+            onChange={(e) => setStatement(e.target.value)}
+            placeholder={"Date,Description,Amount\n2026-10-05,NETFLIX.COM,-17.99"}
+            spellCheck={false}
+            className="num h-44 w-full resize-y rounded-xl border border-line bg-background/70 p-3 text-xs leading-relaxed outline-none placeholder:text-muted/50 focus:border-accent"
+          />
+        </div>
+
+        <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface/80 p-4">
+          <span className="text-sm text-muted">Who is checking</span>
+          <Household member={member} onPick={setMember} members={members.members} configured={members.configured} />
+          <label className="mt-1 flex items-start gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-[var(--accent)]"
+              checked={skipRedaction}
+              onChange={(e) => setSkipRedaction(e.target.checked)}
+            />
+            <span>Send it unstripped, to watch Otari&apos;s guardrail stop it</span>
           </label>
           <button
             type="button"
             onClick={run}
             disabled={running || !statement.trim()}
-            className="ml-auto rounded-xl bg-accent px-5 py-2.5 font-medium text-white disabled:opacity-40"
+            className="mt-auto rounded-xl bg-accent px-5 py-3 font-medium text-[#1a1206] shadow-[0_0_30px_rgba(255,154,60,0.25)] transition hover:brightness-110 disabled:opacity-30 disabled:shadow-none"
           >
-            {running ? "Checking…" : "Find my leaks"}
+            {running ? "Tracing the leaks…" : "Find my leaks"}
           </button>
         </div>
       </section>
@@ -162,220 +217,175 @@ export default function Home() {
       <div ref={resultsRef} className="scroll-mt-6" />
 
       {started && (
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-          <div className="min-w-0 space-y-6">
-            {blocked && (
-              <div className="rounded-2xl border border-accent bg-accent-soft p-4">
-                <p className="font-medium text-accent">Otari blocked this request before it reached a model.</p>
-                <p className="mt-1 text-sm">
-                  The statement still contained personal data, so the guardrail refused it. Turn account-number stripping back on.
-                </p>
-              </div>
-            )}
+        <div className="mt-8 space-y-6">
+          <Pipeline nodes={nodes} />
 
-            <ol className="space-y-2">
-              {redaction && (
-                <StepRow
-                  status="done"
-                  label="Removing account numbers and contact details"
-                  detail={
-                    Object.keys(redaction).length
-                      ? Object.entries(redaction)
-                          .map(([k, v]) => `${v} ${k.toLowerCase()}`)
-                          .join(", ")
-                      : "skipped"
-                  }
-                />
-              )}
-              {Object.values(steps).map((s) => (
-                <StepRow key={s.id} status={s.status} label={s.label} detail={s.detail} />
-              ))}
-            </ol>
+          {blocked && (
+            <div className="fade-up rounded-2xl border border-danger/60 bg-danger/10 p-4">
+              <p className="font-medium text-danger">Otari&apos;s guardrail stopped this statement before any model saw it.</p>
+              <p className="mt-1 text-sm text-muted">It still carried personal data. Turn stripping back on and run it again.</p>
+            </div>
+          )}
+          {budgetOut && !blocked && (
+            <div className="fade-up rounded-2xl border border-accent/60 bg-accent-soft p-4">
+              <p className="font-medium text-accent">This member&apos;s AI allowance is used up for today.</p>
+              <p className="mt-1 text-sm text-muted">Otari refused the request at their budget. Pick another member or come back tomorrow.</p>
+            </div>
+          )}
 
-            {totals && (
-              <section className="rounded-2xl border border-line bg-surface p-5">
-                <p className="text-sm text-muted">You pay for {totals.count} subscriptions</p>
-                <p className="mt-1 text-5xl font-semibold tracking-tight">
-                  {usd(totals.yearly)}
-                  <span className="text-xl font-normal text-muted"> a year</span>
-                </p>
-                <p className="mt-3 text-lg">
-                  <span className="font-semibold text-accent">{usd(savings)} a year</span> goes on overlapping services and bank fees.
-                </p>
-                <ul className="mt-4 space-y-2 text-sm">
-                  {totals.overlaps.map((o) => (
-                    <li key={o.group} className="flex justify-between gap-4 border-t border-line pt-2">
-                      <span>
-                        {o.services.length} {o.group} services ({o.services.join(", ")}). Keeping {o.keep} saves
-                      </span>
-                      <span className="font-medium tabular-nums">{usd(o.yearlyWaste)}/yr</span>
-                    </li>
-                  ))}
-                  {totals.feesYearly > 0 && (
-                    <li className="flex justify-between gap-4 border-t border-line pt-2">
-                      <span>Bank fees, at this statement&apos;s rate</span>
-                      <span className="font-medium tabular-nums">{usd(totals.feesYearly)}/yr</span>
-                    </li>
-                  )}
-                  {totals.priceRises.map((p) => (
-                    <li key={p.service} className="flex justify-between gap-4 border-t border-line pt-2 text-muted">
-                      <span>
-                        {p.service} went up from {cents(p.from)} to {cents(p.to)}
-                      </span>
-                      <span className="tabular-nums">+{usd(p.yearlyExtra)}/yr</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+          {redaction && <AiSaw raw={sent} redacted={redaction.text} removed={redaction.removed} skipped={redaction.skipped} />}
 
-            {charges.length > 0 && (
-              <section className="overflow-x-auto rounded-2xl border border-line bg-surface">
-                <table className="w-full text-left text-sm">
-                  <thead className="text-muted">
-                    <tr className="border-b border-line">
-                      <th className="px-4 py-3 font-medium">What</th>
-                      <th className="px-4 py-3 font-medium">You pay</th>
-                      <th className="px-4 py-3 font-medium">Price today</th>
-                      <th className="px-4 py-3 font-medium">Cancel</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {charges.map((c) => {
-                      const r = researchFor(c.service);
-                      return (
-                        <tr key={`${c.service}-${c.lastAmount}`} className="border-b border-line last:border-0 align-top">
-                          <td className="px-4 py-3">
-                            <div className="font-medium">{c.service}</div>
-                            <div className="text-xs text-muted">{c.isFee ? "bank fee" : c.category}</div>
-                          </td>
-                          <td className="px-4 py-3 tabular-nums">
-                            {cents(c.lastAmount)}
-                            {!c.isFee && <span className="text-muted">/{c.cadence === "yearly" ? "yr" : "mo"}</span>}
-                          </td>
-                          <td className="px-4 py-3">
-                            {r?.currentPrice ?? <span className="text-muted">{c.isFee ? "" : "not checked"}</span>}
-                            {r?.note && <div className="text-xs text-muted">{r.note}</div>}
-                          </td>
-                          <td className="px-4 py-3">
-                            {r?.cancelUrl ? (
-                              <a href={r.cancelUrl} target="_blank" rel="noreferrer" className="text-accent underline">
-                                Cancel page
-                              </a>
-                            ) : (
-                              <span className="text-muted">{c.isFee ? "Ask your bank" : ""}</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </section>
-            )}
+          {totals && (
+            <section className="fade-up grid gap-4 md:grid-cols-3">
+              <Stat label={`You pay for ${totals.count} subscriptions`} value={totals.yearly} suffix="a year" />
+              <Stat label="Plugged so far" value={yearlySaved} suffix="a year back" accent hint="Flip the switches below" />
+              <Stat
+                label="Bank fees, at this statement's rate"
+                value={totals.feesYearly}
+                suffix="a year"
+                hint={totals.priceRises.map((p) => `${p.service} +${usd(p.yearlyExtra)}/yr`).join(" · ") || undefined}
+                hintLabel={totals.priceRises.length ? "Price rises" : undefined}
+              />
+            </section>
+          )}
 
-            {errors
-              .filter((e) => e.code !== "guardrail_violation")
-              .map((e, i) => (
-                <p key={i} className="text-sm text-muted">
-                  {e.step}: {e.message}
-                </p>
-              ))}
-          </div>
+          {charges.length > 0 && (
+            <LeakCards
+              charges={charges}
+              research={research}
+              plugged={plugged}
+              onToggle={toggle}
+              member={member}
+              onTrace={addTrace}
+            />
+          )}
 
-          <OtariPanel traces={traces} cost={otariCost} running={running} />
+          {errors
+            .filter((e) => e.code !== "guardrail_violation" && !/budget/i.test(e.code))
+            .map((e, i) => (
+              <p key={i} className="text-xs text-muted">
+                {e.step}: {e.message}
+              </p>
+            ))}
         </div>
       )}
 
-      <footer className="mt-16 text-xs text-muted">
-        Built for MozFest Developers Wilding. Every model call goes through{" "}
-        <a className="underline" href="https://otari.ai" target="_blank" rel="noreferrer">
-          Otari
-        </a>
-        . The sample statement is fictional.
+      <footer className="mt-20 flex flex-wrap justify-between gap-2 border-t border-line pt-6 text-xs text-muted">
+        <span>Built for MozFest Developers Wilding. The sample statement is fictional.</span>
+        <span>Qwen 3.5 · DeepSeek V4 Flash · Ministral 8B · Otari sandbox</span>
       </footer>
     </main>
   );
 }
 
-function StepRow({ status, label, detail }: { status: Step["status"]; label: string; detail?: string }) {
-  const dot =
-    status === "done" ? "bg-ok" : status === "failed" ? "bg-accent" : status === "skipped" ? "bg-line" : "bg-accent animate-pulse";
+function Stat({
+  label,
+  value,
+  suffix,
+  accent,
+  hint,
+  hintLabel,
+}: {
+  label: string;
+  value: number;
+  suffix: string;
+  accent?: boolean;
+  hint?: string;
+  hintLabel?: string;
+}) {
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
-      <span className="font-medium">{label}</span>
-      {detail && <span className="ml-auto truncate text-muted">{detail}</span>}
-    </li>
+    <div className={`rounded-2xl border p-5 ${accent ? "border-accent/60 bg-accent-soft" : "border-line bg-surface/80"}`}>
+      <p className="text-xs uppercase tracking-wider text-muted">{label}</p>
+      <p className={`num mt-2 text-4xl font-semibold ${accent ? "text-accent" : ""}`}>
+        <CountUp value={value} format={usd} />
+      </p>
+      <p className="mt-1 text-sm text-muted">{suffix}</p>
+      {hint && (
+        <p className="mt-3 text-xs text-muted">
+          {hintLabel && <span className="text-foreground">{hintLabel}: </span>}
+          {hint}
+        </p>
+      )}
+    </div>
   );
 }
 
-function OtariPanel({ traces, cost, running }: { traces: OtariTrace[]; cost: number; running: boolean }) {
-  return (
-    <aside className="h-fit rounded-2xl border border-line bg-surface p-4 lg:sticky lg:top-6">
-      <div className="flex items-baseline justify-between">
-        <h2 className="font-semibold">What Otari did</h2>
-        <span className="text-sm tabular-nums text-muted">${cost.toFixed(4)}</span>
-      </div>
-      <p className="mt-1 text-xs text-muted">Every request, as the gateway reported it.</p>
-      {traces.length === 0 && <p className="mt-4 text-sm text-muted">{running ? "Waiting for the first request…" : ""}</p>}
-      <ul className="mt-4 space-y-3">
-        {traces.map((t, i) => (
-          <li key={`${t.requestId}-${i}`} className="rounded-xl border border-line p-3 text-xs">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium capitalize text-foreground">{t.step}</span>
-              <span className="tabular-nums text-muted">
-                {(t.ms / 1000).toFixed(1)}s · ${t.costUsd.toFixed(4)}
-              </span>
-            </div>
-            <div className="mt-1 text-muted">
-              {t.servedBy}
-              {t.provider ? ` on ${t.provider}` : ""}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {t.model.startsWith("leak-") && <Tag>routing policy {t.model}</Tag>}
-              {t.fallback && <Tag accent>fallback served it</Tag>}
-              {t.guardrails && <Tag>guardrail: {guardrailSummary(t.guardrails)}</Tag>}
-              {t.endUserBudget && <Tag>member budget</Tag>}
-              {t.toolCalls.map((c, j) => (
-                <Tag key={j}>
-                  {c.type.replace("_", " ")}
-                  {c.query ? `: ${c.query}` : c.url ? `: ${new URL(c.url).hostname}` : ""}
-                </Tag>
-              ))}
-            </div>
-            {t.toolCalls
-              .filter((c) => c.type === "code_execution" && c.code)
-              .map((c, j) => (
-                <details key={j} className="mt-2">
-                  <summary className="cursor-pointer text-muted">Python it ran</summary>
-                  <pre className="mt-1 max-h-48 overflow-auto rounded bg-background p-2 font-mono text-[10px]">{c.code}</pre>
-                </details>
-              ))}
-          </li>
-        ))}
-      </ul>
-    </aside>
-  );
-}
+function buildNodes({
+  steps,
+  traces,
+  errors,
+  redaction,
+  running,
+}: {
+  steps: Record<string, Step>;
+  traces: OtariTrace[];
+  errors: RunError[];
+  redaction: Redaction | null;
+  running: boolean;
+}): PipelineNode[] {
+  const of = (prefix: string) => traces.filter((t) => t.step.startsWith(prefix));
+  const stepState = (id: string): NodeState => {
+    const s = steps[id];
+    if (!s) return "idle";
+    return s.status === "skipped" ? "off" : s.status;
+  };
+  const blocked = errors.some((e) => e.code === "guardrail_violation");
+  const guarded = traces.find((t) => t.guardrails);
+  const modelTraces = traces.filter((t) => t.model !== "sandbox");
 
-function Tag({ children, accent }: { children: React.ReactNode; accent?: boolean }) {
-  return (
-    <span
-      className={`max-w-full truncate rounded-full border px-2 py-0.5 ${
-        accent ? "border-accent text-accent" : "border-line text-muted"
-      }`}
-    >
-      {children}
-    </span>
-  );
-}
+  let guard: NodeState = "idle";
+  let guardNote = "waiting";
+  if (blocked) {
+    guard = "blocked";
+    guardNote = "refused: personal data found";
+  } else if (guarded) {
+    guard = "done";
+    guardNote = "checked every request";
+  } else if (modelTraces.length > 0) {
+    guard = "off";
+    guardNote = "no guardrail mandated on this workspace yet";
+  } else if (running && redaction) guard = "running";
 
-function guardrailSummary(header: string) {
-  try {
-    const parsed = JSON.parse(header) as { status?: string; valid?: boolean }[];
-    return parsed.map((g) => (g.valid === false ? "flagged" : (g.status ?? "checked"))).join(", ");
-  } catch {
-    return "checked";
+  const extract = of("extract");
+  const fallback = extract.find((t) => t.fallback);
+  const drafts = of("draft");
+
+  const nodes: PipelineNode[] = [
+    {
+      id: "strip",
+      title: "Strip identifiers",
+      feature: "privacy",
+      model: "runs before Otari",
+      state: redaction ? (redaction.skipped ? "off" : "done") : running ? "running" : "idle",
+      note: redaction
+        ? redaction.skipped
+          ? "skipped on purpose"
+          : `${Object.values(redaction.removed).reduce((a, b) => a + b, 0)} removed`
+        : undefined,
+      traces: [],
+    },
+    { id: "guard", title: "Guardrail", feature: "guardrails", model: "PII check at the gateway", state: guard, note: guardNote, traces: guarded ? [guarded] : [] },
+    {
+      id: "extract",
+      title: "Find charges",
+      feature: fallback ? "routing · fallback" : "model 1",
+      model: extract[0]?.servedBy ?? "Qwen 3.5 35B",
+      state: blocked && !extract.length ? "blocked" : stepState("extract"),
+      traces: extract,
+    },
+    {
+      id: "research",
+      title: "Check prices",
+      feature: "model 2 · web",
+      model: of("research")[0]?.servedBy ?? "DeepSeek V4 Flash",
+      state: stepState("research"),
+      note: steps.research?.detail,
+      traces: of("research"),
+    },
+    { id: "sandbox", title: "Add it up", feature: "code execution", model: "Otari sandbox", state: stepState("totals"), traces: of("totals") },
+  ];
+  if (drafts.length) {
+    nodes.push({ id: "draft", title: "Write the fix", feature: "model 3", model: drafts[0].servedBy ?? "Ministral 8B", state: "done", traces: drafts });
   }
+  return nodes;
 }
