@@ -4,7 +4,7 @@ Drop in a bank statement and see every subscription and hidden fee, what it cost
 
 Built for [MozFest Developers Wilding](https://otari.ai/devs-wilding). Every model call goes through hosted [Otari](https://otari.ai), Mozilla.ai's open-source AI gateway, and every model is open-weight.
 
-**Live:** https://leak-otari.vercel.app (use the sample statement; it is fictional)
+**Live:** https://leak-otari.vercel.app · the app at [/app](https://leak-otari.vercel.app/app?sample=1) (the sample statement is fictional) · [How it works](https://leak-otari.vercel.app/how-it-works) · [Powered by Otari](https://leak-otari.vercel.app/otari)
 
 On the sample, Leak finds 12 subscriptions costing $2,938 a year, $516 a year spent on overlapping video and music services, and $297 a year in bank fees. A full run costs about one cent of Otari credit.
 
