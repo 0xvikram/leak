@@ -55,15 +55,33 @@ export type OtariToolCall = {
 
 type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & Record<string, unknown>;
 
-/** A chat completion through Otari that also returns the gateway's own account of it. */
+type Usage = { cost_usd?: string; prompt_tokens?: number; completion_tokens?: number };
+
+/**
+ * A chat completion through Otari that also returns the gateway's own account of it.
+ * Streamed, because hosted Otari cuts a request that sends nothing back for 30 seconds;
+ * the text, usage and Otari's tool-call records are gathered from the chunks.
+ */
 export async function chat(step: string, params: ChatParams) {
   const started = Date.now();
-  const { data, response } = await otari().chat.completions.create(params).withResponse();
+  const { data: stream, response } = await otari()
+    .chat.completions.create({ ...params, stream: true, stream_options: { include_usage: true } } as never)
+    .withResponse();
   const h = response.headers;
-  const raw = data as unknown as {
-    usage?: { cost_usd?: string; prompt_tokens?: number; completion_tokens?: number };
-    otari_tool_calls?: OtariToolCall[];
-  };
+  let text = "";
+  let usage: Usage | undefined;
+  const calls = new Map<string, OtariToolCall>();
+  for await (const chunk of stream as unknown as AsyncIterable<{
+    choices?: { delta?: { content?: string | null } }[];
+    usage?: Usage | null;
+    otari_tool_calls?: (OtariToolCall & { id?: string })[];
+  }>) {
+    text += chunk.choices?.[0]?.delta?.content ?? "";
+    if (chunk.usage) usage = chunk.usage;
+    // Each call is announced in_progress and then again when it ends; keep the latest by id.
+    for (const c of chunk.otari_tool_calls ?? []) calls.set(c.id ?? `${calls.size}`, { ...calls.get(c.id ?? ""), ...c });
+  }
+  const raw = { usage, otari_tool_calls: [...calls.values()] };
   const trace: OtariTrace = {
     step,
     requestId: h.get("otari-request-id"),
@@ -80,7 +98,7 @@ export async function chat(step: string, params: ChatParams) {
     toolCalls: raw.otari_tool_calls ?? [],
     ms: Date.now() - started,
   };
-  return { text: data.choices[0]?.message?.content ?? "", trace };
+  return { text, trace };
 }
 
 /** Otari's refusals carry a stable code; surface it so the UI can explain a budget or guardrail stop. */
