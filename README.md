@@ -16,7 +16,7 @@ On the sample, Leak finds 12 subscriptions costing $2,938 a year, $516 a year sp
 | Demo video | _link added on submission_ |
 | Proof per feature | [EVIDENCE.md](EVIDENCE.md): each rubric item with the Otari request ID that shows it, and the app's **Proof** panel produces the same table for your own run |
 | Feedback | [OTARI_FEEDBACK.md](OTARI_FEEDBACK.md) |
-| Upstream | [mozilla-ai/otari#3039](https://github.com/mozilla-ai/otari/pull/3039), merged: a code execution call with no code is refused instead of reported as completed |
+| Upstream | [#3039](https://github.com/mozilla-ai/otari/pull/3039) merged; [#3177](https://github.com/mozilla-ai/otari/pull/3177), [#3178](https://github.com/mozilla-ai/otari/pull/3178), [#3179](https://github.com/mozilla-ai/otari/pull/3179), [#3180](https://github.com/mozilla-ai/otari/pull/3180) open; bug report [#3183](https://github.com/mozilla-ai/otari/issues/3183) |
 | First Otari commit | [`6a22d79`](https://github.com/0xvikram/leak/commit/6a22d79) on `devs-wilding` |
 
 **Why it matters.** Apps that find forgotten subscriptions usually want your bank login and keep your data. Leak needs neither: no account, no bank connection, no database. Identifiers are stripped before any request, an Otari guardrail is the second lock, and the page shows exactly what the model saw.
@@ -70,7 +70,14 @@ npm run dev
 
 ## Contributions to Otari
 
-- [#3039](https://github.com/mozilla-ai/otari/pull/3039), merged: a code execution call with no code is refused instead of reported as completed.
+| Contribution | What | Status |
+| --- | --- | --- |
+| [#3039](https://github.com/mozilla-ai/otari/pull/3039) | A code execution call with no code is refused instead of reported as completed (found building Leak) | Merged |
+| [#3177](https://github.com/mozilla-ai/otari/pull/3177) | A gateway tool call whose arguments are not valid JSON is refused instead of run with `{}` (found building Leak) | Open |
+| [#3178](https://github.com/mozilla-ai/otari/pull/3178) | A failing cache reset no longer aborts the rest of shutdown (fixes #1223) | Open |
+| [#3179](https://github.com/mozilla-ai/otari/pull/3179) | The readiness probe logs a database outage once, not on every probe (fixes #1246) | Open |
+| [#3180](https://github.com/mozilla-ai/otari/pull/3180) | A malformed storage reference is handled like any other store failure (fixes #1601) | Open |
+| [#3183](https://github.com/mozilla-ai/otari/issues/3183) | Bug report: an exhausted `max_uses` keeps the tool on offer and the loop ends in a 422 (found building Leak) | Filed |
 
 ## License
 

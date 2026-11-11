@@ -47,6 +47,45 @@ const FEATURES = [
   },
 ];
 
+const CONTRIBUTIONS = [
+  {
+    n: 3039,
+    href: "https://github.com/mozilla-ai/otari/pull/3039",
+    status: "Merged",
+    what: "A code execution call with no code was reported as completed. Now it is refused, the model is told to try again, and it is never billed. Found while building Leak.",
+  },
+  {
+    n: 3177,
+    href: "https://github.com/mozilla-ai/otari/pull/3177",
+    status: "Open PR",
+    what: "A tool call whose arguments are not valid JSON was run with empty arguments. Now it is refused with a clear error the model can act on. Found while building Leak.",
+  },
+  {
+    n: 3178,
+    href: "https://github.com/mozilla-ai/otari/pull/3178",
+    status: "Open PR",
+    what: "A failing cache reset no longer aborts the rest of the gateway's shutdown (fixes #1223).",
+  },
+  {
+    n: 3179,
+    href: "https://github.com/mozilla-ai/otari/pull/3179",
+    status: "Open PR",
+    what: "The readiness probe logs a database outage once instead of on every probe (fixes #1246).",
+  },
+  {
+    n: 3180,
+    href: "https://github.com/mozilla-ai/otari/pull/3180",
+    status: "Open PR",
+    what: "A malformed storage reference is handled like any other file-store failure (fixes #1601).",
+  },
+  {
+    n: 3183,
+    href: "https://github.com/mozilla-ai/otari/issues/3183",
+    status: "Bug report",
+    what: "Past a tool's max_uses the tool stays on offer, so a model can loop on refusals until the request fails. Found while building Leak.",
+  },
+];
+
 const HEADERS = [
   ["Otari-Model", "which model actually answered"],
   ["Otari-Provider", "which provider served it"],
@@ -107,28 +146,31 @@ export default function PoweredByOtariPage() {
 
       <section className="mt-16">
         <h2 className="text-2xl font-light tracking-tight sm:text-3xl">Giving back to Otari</h2>
-        <div className="mt-5 rounded-2xl border border-ok/40 bg-surface/80 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <a
-              href="https://github.com/mozilla-ai/otari/pull/3039"
-              target="_blank"
-              rel="noreferrer"
-              className="num font-medium hover:text-accent"
-            >
-              mozilla-ai/otari#3039 ↗
-            </a>
-            <span className="rounded-full bg-ok/15 px-3 py-0.5 text-xs text-ok">Merged</span>
-          </div>
-          <p className="mt-2 text-sm text-muted">
-            A model sometimes called code execution with no code, and Otari reported the empty run as completed. Now the call is refused, the
-            model is told to try again, it is never billed, and it shows as failed. Found while building Leak.
-          </p>
-        </div>
+        <p className="mt-2 text-muted">Six contributions during the hackathon, three of them found while building Leak.</p>
+        <ul className="mt-5 space-y-3">
+          {CONTRIBUTIONS.map((c) => (
+            <li key={c.n} className={`rounded-2xl border bg-surface/80 p-4 ${c.status === "Merged" ? "border-ok/40" : "border-line"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <a href={c.href} target="_blank" rel="noreferrer" className="num font-medium hover:text-accent">
+                  mozilla-ai/otari#{c.n} ↗
+                </a>
+                <span
+                  className={`rounded-full px-3 py-0.5 text-xs ${
+                    c.status === "Merged" ? "bg-ok/15 text-ok" : c.status === "Bug report" ? "bg-accent-soft text-accent" : "bg-raised text-muted"
+                  }`}
+                >
+                  {c.status}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-muted">{c.what}</p>
+            </li>
+          ))}
+        </ul>
         <h3 className="mt-8 font-medium">What building on hosted Otari taught us</h3>
         <ul className="mt-3 space-y-2 text-sm text-muted">
           <li>· A request that sends nothing back for 30 seconds is cut off, so every Leak call streams.</li>
           <li>· Past a web search max_uses cap, a model can keep calling and the loop ends in a 422, so Leak batches instead of capping.</li>
-          <li>· Streamed DeepSeek code calls reached the sandbox with empty code, which led to the PR above.</li>
+          <li>· Streamed DeepSeek code calls reached the sandbox with empty code, which led to #3039 and #3177.</li>
         </ul>
       </section>
 
