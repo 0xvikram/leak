@@ -133,7 +133,7 @@ export default function Home() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-accent">The app</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Check a statement</h1>
+          <h1 className="mt-2 text-3xl font-light tracking-tight sm:text-5xl">Check a statement</h1>
           <p className="mt-2 max-w-xl text-muted">
             Paste a CSV export from your bank, or try the fictional sample. Account numbers are stripped before any model sees it.
           </p>
@@ -200,7 +200,7 @@ export default function Home() {
             type="button"
             onClick={run}
             disabled={running || !statement.trim()}
-            className="mt-auto rounded-xl bg-accent px-5 py-3 font-medium text-[#1a1206] shadow-[0_0_30px_rgba(255,154,60,0.25)] transition hover:brightness-110 disabled:opacity-30 disabled:shadow-none"
+            className="mt-auto pill-white px-5 py-3 font-medium transition disabled:opacity-30 disabled:shadow-none"
           >
             {running ? "Tracing the leaks…" : "Find my leaks"}
           </button>

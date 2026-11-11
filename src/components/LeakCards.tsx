@@ -100,7 +100,7 @@ export function LeakCards({
                     type="button"
                     onClick={() => draft(c)}
                     disabled={d?.status === "loading"}
-                    className="rounded-md bg-accent px-2 py-1 font-medium text-[#1a1206] disabled:opacity-50"
+                    className="pill-white px-2 py-1 font-medium disabled:opacity-50"
                   >
                     {d?.status === "loading" ? "Writing…" : d?.status === "done" ? "Rewrite" : "Write the cancellation"}
                   </button>

@@ -65,7 +65,7 @@ export default function HowItWorks() {
   return (
     <main className="mx-auto max-w-5xl px-4 pt-14 sm:px-6">
       <PoweredByOtari />
-      <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">How Leak works</h1>
+      <h1 className="mt-5 text-4xl font-light tracking-[-0.02em] sm:text-6xl">How Leak works</h1>
       <p className="mt-4 max-w-2xl text-lg text-muted">
         Six stages, three open-weight models, and every model request routed through Mozilla&apos;s Otari gateway. The numbers below are from
         the sample statement.
@@ -119,13 +119,13 @@ export default function HowItWorks() {
       </section>
 
       <div className="mt-12 flex flex-wrap gap-3">
-        <Link href="/app?sample=1" className="rounded-xl bg-accent px-5 py-3 font-medium text-[#1a1206] hover:brightness-110">
+        <Link href="/app?sample=1" className="pill-white px-5 py-3 font-medium ">
           Watch it run on the sample
         </Link>
-        <Link href="/otari" className="rounded-xl border border-line px-5 py-3 font-medium hover:border-muted">
+        <Link href="/otari" className="rounded-full border border-line bg-surface px-5 py-3 font-medium hover:border-muted">
           How Leak uses Otari
         </Link>
-        <a href={REPO} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-5 py-3 font-medium hover:border-muted">
+        <a href={REPO} target="_blank" rel="noreferrer" className="rounded-full border border-line bg-surface px-5 py-3 font-medium hover:border-muted">
           Read the code
         </a>
       </div>

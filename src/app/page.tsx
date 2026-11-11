@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DotDrop } from "@/components/DotDrop";
 import { PoweredByOtari } from "@/components/SiteChrome";
 
 const STEPS = [
@@ -68,34 +69,47 @@ export default function Home() {
   return (
     <main>
       {/* Hero */}
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:pt-24">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <PoweredByOtari />
-            <span className="rounded-full border border-line px-3 py-1 text-xs text-muted">MozFest Developers Wilding</span>
-          </div>
-          <h1 className="mt-6 text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
-            Your bank account is <span className="text-accent">leaking</span>. Find out where.
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-muted">
-            Drop in a bank statement. Leak finds every subscription and hidden fee, what it costs you a year and how to cancel it. Your account
-            numbers never reach a model.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/app?sample=1"
-              className="rounded-xl bg-accent px-5 py-3 font-medium text-[#1a1206] shadow-[0_0_30px_rgba(255,154,60,0.3)] hover:brightness-110"
-            >
-              Try it with a sample statement
-            </Link>
-            <Link href="/app" className="rounded-xl border border-line px-5 py-3 font-medium hover:border-muted">
-              Check my own statement
-            </Link>
-          </div>
-          <p className="mt-4 text-xs text-muted">Free to try · no sign-up · open-weight models only</p>
+      <section className="mx-auto max-w-5xl px-4 pt-16 text-center sm:px-6 sm:pt-24">
+        <div className="flex justify-center">
+          <PoweredByOtari />
         </div>
+        <h1 className="mx-auto mt-8 max-w-4xl text-5xl font-light leading-[1.08] tracking-[-0.02em] sm:text-6xl lg:text-7xl">
+          Your money is <span className="grad-text font-normal">leaking</span>
+          <span className="text-muted">.</span>
+          <br />
+          <span className="text-muted">Find out where,</span> and plug it.
+        </h1>
+        <p className="num mx-auto mt-6 max-w-xl text-sm leading-relaxed text-muted">
+          every subscription and hidden fee in your bank statement - what it costs a year
+          <br className="hidden sm:block" /> and how to cancel - without your account numbers ever reaching a model
+        </p>
+        <div className="mt-9 flex flex-wrap justify-center gap-3">
+          <Link href="/app?sample=1" className="pill-white px-6 py-3 text-sm font-medium">
+            See it in action →
+          </Link>
+          <Link href="/app" className="rounded-full border border-line bg-surface px-6 py-3 text-sm font-medium hover:border-muted">
+            Check my statement
+          </Link>
+        </div>
+        <div className="mt-6 -mb-10">
+          <DotDrop />
+        </div>
+      </section>
 
-        <HeroCard />
+      <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+        <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.05fr]">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-accent">On a real-looking statement</p>
+            <h2 className="mt-3 text-4xl font-light tracking-tight">
+              12 subscriptions. <span className="text-muted">$516 a year paid twice for the same job.</span>
+            </h2>
+            <p className="mt-4 max-w-md text-muted">
+              Three months of a fictional household&apos;s spending, checked in about a minute. Flip a switch on anything you don&apos;t need and Leak
+              writes the cancellation for you.
+            </p>
+          </div>
+          <HeroCard />
+        </div>
       </section>
 
       {/* Numbers */}
@@ -108,7 +122,7 @@ export default function Home() {
             ["0", "account numbers sent to a model"],
           ].map(([v, l]) => (
             <div key={l}>
-              <div className="num text-3xl font-semibold text-accent">{v}</div>
+              <div className="num grad-text text-3xl font-medium">{v}</div>
               <div className="mt-1 text-sm text-muted">{l}</div>
             </div>
           ))}
@@ -186,7 +200,7 @@ export default function Home() {
           <div className="relative grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-center">
             <div>
               <PoweredByOtari />
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight">Every request goes through Otari</h2>
+              <h2 className="mt-4 text-3xl font-light tracking-tight sm:text-4xl">Every request goes through <span className="grad-text">Otari</span></h2>
               <p className="mt-3 text-muted">
                 Otari is Mozilla.ai&apos;s open-source AI gateway. It gives Leak one key for every open-weight model, web search, a code sandbox,
                 guardrails and a budget for each person in the household, and tells the app exactly what happened on each request.
@@ -225,13 +239,13 @@ export default function Home() {
       {/* Final CTA */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="rounded-3xl border border-accent/40 bg-accent-soft p-10 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight">How much is leaking out of yours?</h2>
+          <h2 className="text-3xl font-light tracking-tight sm:text-4xl">How much is leaking out of yours?</h2>
           <p className="mx-auto mt-3 max-w-lg text-muted">It takes about a minute. Start with the sample if you&apos;d rather not use your own.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link href="/app?sample=1" className="rounded-xl bg-accent px-5 py-3 font-medium text-[#1a1206] hover:brightness-110">
+            <Link href="/app?sample=1" className="pill-white px-5 py-3 font-medium ">
               Try the sample
             </Link>
-            <Link href="/app" className="rounded-xl border border-line bg-background px-5 py-3 font-medium hover:border-muted">
+            <Link href="/app" className="rounded-full border border-line bg-surface px-5 py-3 font-medium hover:border-muted">
               Check my statement
             </Link>
           </div>
@@ -246,7 +260,7 @@ function SectionHead({ eyebrow, title, link }: { eyebrow: string; title: string;
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-accent">{eyebrow}</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h2>
+        <h2 className="mt-2 text-3xl font-light tracking-tight sm:text-4xl">{title}</h2>
       </div>
       {link && (
         <Link href={link.href} className="text-sm text-muted hover:text-accent">

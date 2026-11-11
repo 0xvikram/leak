@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b0c0e;
-  --surface: #121418;
-  --raised: #181b20;
-  --foreground: #ecebe6;
-  --muted: #8a8f99;
-  --line: #24272d;
-  --accent: #ff9a3c;
-  --accent-soft: rgba(255, 154, 60, 0.12);
-  --danger: #ff5d5d;
-  --ok: #5ee6a8;
+  --background: #050505;
+  --surface: #0c0c0d;
+  --raised: #131315;
+  --foreground: #f2f2f0;
+  --muted: #8b8b90;
+  --line: #1e1e22;
+  --accent: #b48cff;
+  --accent-2: #ff7a3d;
+  --accent-soft: rgba(150, 100, 255, 0.1);
+  --danger: #ff6b6b;
+  --ok: #6ee7b7;
 }
 
 @theme inline {
@@ -22,6 +23,7 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
   --font-sans: var(--font-geist-sans);
@@ -34,11 +36,30 @@ html {
 
 body {
   background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(255, 154, 60, 0.08), transparent 60%),
-    radial-gradient(900px 500px at -10% 10%, rgba(94, 230, 168, 0.04), transparent 60%), var(--background);
+    radial-gradient(900px 520px at 50% 18%, rgba(140, 80, 255, 0.13), transparent 65%),
+    radial-gradient(600px 400px at 60% 30%, rgba(255, 122, 61, 0.06), transparent 70%), var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   min-height: 100vh;
+}
+
+.grad-text {
+  background: linear-gradient(90deg, #7c5cff, #b14dff 45%, #ff7a3d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.grad-bg {
+  background: linear-gradient(90deg, #7c5cff, #b14dff 50%, #ff7a3d);
+}
+.pill-white {
+  background: #f2f2f0;
+  color: #050505;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 30px rgba(150, 100, 255, 0.18);
+}
+.pill-white:hover {
+  background: #ffffff;
 }
 
 .num {
@@ -57,7 +78,7 @@ body {
   border-color: var(--accent);
   box-shadow:
     0 0 0 1px var(--accent),
-    0 0 28px rgba(255, 154, 60, 0.35);
+    0 0 28px rgba(150, 100, 255, 0.4);
   animation: pulse 1.4s ease-in-out infinite;
 }
 .node[data-state="done"] {
@@ -77,7 +98,7 @@ body {
   50% {
     box-shadow:
       0 0 0 1px var(--accent),
-      0 0 44px rgba(255, 154, 60, 0.5);
+      0 0 44px rgba(177, 77, 255, 0.55);
   }
 }
 
@@ -107,8 +128,8 @@ body {
 
 /* What the AI saw */
 .redacted {
-  background: var(--accent);
-  color: #1a1206;
+  background: linear-gradient(90deg, #7c5cff, #b14dff 55%, #ff7a3d);
+  color: #050505;
   border-radius: 3px;
   padding: 0 4px;
   font-weight: 600;

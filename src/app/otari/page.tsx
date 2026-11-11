@@ -60,7 +60,7 @@ export default function PoweredByOtariPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 pt-14 sm:px-6">
       <PoweredByOtari />
-      <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Built on Mozilla&apos;s Otari</h1>
+      <h1 className="mt-5 text-4xl font-light tracking-[-0.02em] sm:text-6xl">Built on Mozilla&apos;s Otari</h1>
       <p className="mt-4 max-w-2xl text-lg text-muted">
         <a href={OTARI} target="_blank" rel="noreferrer" className="text-foreground underline decoration-line underline-offset-4">
           Otari
@@ -86,7 +86,7 @@ export default function PoweredByOtariPage() {
 
       <section className="mt-16 grid gap-8 lg:grid-cols-2">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Why a gateway makes Leak trustworthy</h2>
+          <h2 className="text-2xl font-light tracking-tight sm:text-3xl">Why a gateway makes Leak trustworthy</h2>
           <p className="mt-3 text-muted">
             A money app should be able to say exactly which model saw your data and what it did. Otari reports that on every response, and
             Leak shows it to you in the glass box instead of hiding it.
@@ -106,7 +106,7 @@ export default function PoweredByOtariPage() {
       </section>
 
       <section className="mt-16">
-        <h2 className="text-2xl font-semibold tracking-tight">Giving back to Otari</h2>
+        <h2 className="text-2xl font-light tracking-tight sm:text-3xl">Giving back to Otari</h2>
         <div className="mt-5 rounded-2xl border border-ok/40 bg-surface/80 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <a
@@ -133,13 +133,13 @@ export default function PoweredByOtariPage() {
       </section>
 
       <div className="mt-14 flex flex-wrap gap-3">
-        <Link href="/app?sample=1" className="rounded-xl bg-accent px-5 py-3 font-medium text-[#1a1206] hover:brightness-110">
+        <Link href="/app?sample=1" className="pill-white px-5 py-3 font-medium ">
           See it in the glass box
         </Link>
-        <a href={OTARI} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-5 py-3 font-medium hover:border-muted">
+        <a href={OTARI} target="_blank" rel="noreferrer" className="rounded-full border border-line bg-surface px-5 py-3 font-medium hover:border-muted">
           otari.ai
         </a>
-        <a href="https://github.com/mozilla-ai/otari" target="_blank" rel="noreferrer" className="rounded-xl border border-line px-5 py-3 font-medium hover:border-muted">
+        <a href="https://github.com/mozilla-ai/otari" target="_blank" rel="noreferrer" className="rounded-full border border-line bg-surface px-5 py-3 font-medium hover:border-muted">
           Otari on GitHub
         </a>
       </div>
