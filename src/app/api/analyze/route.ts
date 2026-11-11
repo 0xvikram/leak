@@ -8,7 +8,7 @@ export const maxDuration = 300;
 const MEMBERS = new Set(["alex", "sam", "jordan"]);
 const MAX_STATEMENT_CHARS = 40_000;
 
-const RUNS_PER_HOUR = Number(process.env.LEAK_RUNS_PER_HOUR ?? 6);
+const RUNS_PER_HOUR = Number(process.env.LEAK_RUNS_PER_HOUR ?? 4);
 
 /** Streams each step as one JSON line, so the page can show Otari working as it happens. */
 export async function POST(req: Request) {
