@@ -16,6 +16,7 @@ export async function POST(req: Request) {
     statement?: string;
     member?: string;
     skipRedaction?: boolean;
+    drill?: boolean;
   } | null;
   const statement = body?.statement?.trim();
   if (!statement) return Response.json({ error: "Paste a statement first" }, { status: 400 });
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     async start(controller) {
       const emit = (e: StepEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(e)}\n`));
       try {
-        await analyze(statement, { member, skipRedaction: Boolean(body?.skipRedaction) }, emit);
+        await analyze(statement, { member, skipRedaction: Boolean(body?.skipRedaction), drill: Boolean(body?.drill) }, emit);
       } catch (err) {
         const e = otariError(err);
         emit({ type: "error", step: "run", code: e.code, message: e.message });

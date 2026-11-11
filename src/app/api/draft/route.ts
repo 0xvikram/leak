@@ -1,5 +1,5 @@
 import { allowed } from "@/lib/limit";
-import { chat, MODELS, otariError, usesServiceKey } from "@/lib/otari";
+import { chat, MODELS, memberHeaders, otariError, usesServiceKey } from "@/lib/otari";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
           }),
         },
       ],
-    });
+    }, memberHeaders(member));
     return Response.json({ text: text.replace(/\*\*/g, "").trim(), trace });
   } catch (err) {
     const e = otariError(err);

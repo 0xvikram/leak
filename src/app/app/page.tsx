@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiSaw } from "@/components/AiSaw";
+import { Evidence } from "@/components/Evidence";
 import { CountUp } from "@/components/CountUp";
 import { Household, type Member } from "@/components/Household";
 import { LeakCards, monthlyCost } from "@/components/LeakCards";
@@ -21,6 +22,8 @@ export default function Home() {
   const [sent, setSent] = useState("");
   const [member, setMember] = useState("alex");
   const [skipRedaction, setSkipRedaction] = useState(false);
+  const [drill, setDrill] = useState(false);
+  const [config, setConfig] = useState<{ drill: boolean; tiny: boolean; members: boolean }>({ drill: false, tiny: false, members: false });
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<Record<string, Step>>({});
   const [redaction, setRedaction] = useState<Redaction | null>(null);
@@ -42,6 +45,12 @@ export default function Home() {
   }, []);
   useEffect(loadMembers, [loadMembers]);
   useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then(setConfig)
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
     if (new URLSearchParams(window.location.search).has("sample")) setStatement(SAMPLE_STATEMENT);
   }, []);
 
@@ -61,7 +70,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ statement, member, skipRedaction }),
+        body: JSON.stringify({ statement, member, skipRedaction, drill }),
       });
       if (!res.ok || !res.body) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -196,6 +205,22 @@ export default function Home() {
             />
             <span>Send it unstripped, to watch Otari&apos;s guardrail stop it</span>
           </label>
+          <label className={`flex items-start gap-2 text-xs ${config.drill ? "text-muted" : "text-muted/50"}`}>
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-[var(--accent)]"
+              checked={drill}
+              disabled={!config.drill}
+              onChange={(e) => setDrill(e.target.checked)}
+            />
+            <span>
+              Break the first model, to watch Otari fall back to another
+              {!config.drill && <span className="block">needs the leak-drill routing policy</span>}
+            </span>
+          </label>
+          {member === "jordan" && config.tiny && (
+            <p className="text-xs text-accent">Jordan is on a near-empty allowance: Otari will refuse his run at his budget.</p>
+          )}
           <button
             type="button"
             onClick={run}
@@ -224,6 +249,10 @@ export default function Home() {
               <p className="font-medium text-accent">This member&apos;s AI allowance is used up for today.</p>
               <p className="mt-1 text-sm text-muted">Otari refused the request at their budget. Pick another member or come back tomorrow.</p>
             </div>
+          )}
+
+          {!running && (traces.length > 0 || blocked || budgetOut) && (
+            <Evidence traces={traces} blocked={Boolean(blocked)} budgetRefused={Boolean(budgetOut)} member={member} />
           )}
 
           {redaction && <AiSaw raw={sent} redacted={redaction.text} removed={redaction.removed} skipped={redaction.skipped} />}

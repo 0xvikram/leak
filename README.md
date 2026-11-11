@@ -8,6 +8,21 @@ Built for [MozFest Developers Wilding](https://otari.ai/devs-wilding). Every mod
 
 On the sample, Leak finds 12 subscriptions costing $2,938 a year, $516 a year spent on overlapping video and music services, and $297 a year in bank fees. A full run costs about one cent of Otari credit.
 
+## For judges
+
+| | |
+| --- | --- |
+| Try it | [leak-otari.vercel.app/app?sample=1](https://leak-otari.vercel.app/app?sample=1): press **Find my leaks**, then click any node in the glass box |
+| Demo video | _link added on submission_ |
+| Proof per feature | [EVIDENCE.md](EVIDENCE.md): each rubric item with the Otari request ID that shows it, and the app's **Proof** panel produces the same table for your own run |
+| Feedback | [OTARI_FEEDBACK.md](OTARI_FEEDBACK.md) |
+| Upstream | [mozilla-ai/otari#3039](https://github.com/mozilla-ai/otari/pull/3039), merged: a code execution call with no code is refused instead of reported as completed |
+| First Otari commit | [`6a22d79`](https://github.com/0xvikram/leak/commit/6a22d79) on `devs-wilding` |
+
+**Why it matters.** Apps that find forgotten subscriptions usually want your bank login and keep your data. Leak needs neither: no account, no bank connection, no database. Identifiers are stripped before any request, an Otari guardrail is the second lock, and the page shows exactly what the model saw.
+
+**Live demos in the app.** Tick *send it unstripped* to watch Otari's guardrail refuse the statement; tick *break the first model* to watch Otari fall back to another; pick **Jordan** to watch Otari refuse a run at a near-empty per-person budget.
+
 ## How a run works
 
 1. **Strip identifiers.** Account, card and routing numbers, email and phone are replaced with tags in the browser's request before anything leaves the server ([`src/lib/redact.ts`](src/lib/redact.ts)).

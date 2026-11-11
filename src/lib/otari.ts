@@ -6,10 +6,19 @@ export const OTARI_BASE_URL = "https://otari.ai/api/v1";
 // Model roles. A routing policy name can stand in for a model id, which is how
 // the extract step gets Otari's fallback.
 export const MODELS = {
-  extract: process.env.OTARI_EXTRACT_MODEL ?? "alibaba/qwen-3.5-35b-a3b",
-  research: process.env.OTARI_RESEARCH_MODEL ?? "deepseek/deepseek-v4-flash",
-  draft: process.env.OTARI_DRAFT_MODEL ?? "mistralai/ministral-3-8b",
+  extract: process.env.OTARI_EXTRACT_MODEL || "alibaba/qwen-3.5-35b-a3b",
+  research: process.env.OTARI_RESEARCH_MODEL || "deepseek/deepseek-v4-flash",
+  draft: process.env.OTARI_DRAFT_MODEL || "mistralai/ministral-3-8b",
+  // A failover policy whose first candidate fails, to show Otari's fallback on demand.
+  drill: process.env.OTARI_DRILL_MODEL || "",
 };
+
+/** The end-user budget a member starts on: Jordan gets the near-empty one, to show a budget refusal. */
+export function memberHeaders(member: string): Record<string, string> | undefined {
+  const tiny = process.env.OTARI_TINY_BUDGET_ID;
+  if (!process.env.OTARI_SERVICE_KEY || member !== "jordan" || !tiny) return undefined;
+  return { "Otari-End-User-Budget": tiny };
+}
 
 let client: OpenAI | null = null;
 
@@ -62,10 +71,10 @@ type Usage = { cost_usd?: string; prompt_tokens?: number; completion_tokens?: nu
  * Streamed, because hosted Otari cuts a request that sends nothing back for 30 seconds;
  * the text, usage and Otari's tool-call records are gathered from the chunks.
  */
-export async function chat(step: string, params: ChatParams) {
+export async function chat(step: string, params: ChatParams, headers?: Record<string, string>) {
   const started = Date.now();
   const { data: stream, response } = await otari()
-    .chat.completions.create({ ...params, stream: true, stream_options: { include_usage: true } } as never)
+    .chat.completions.create({ ...params, stream: true, stream_options: { include_usage: true } } as never, headers ? { headers } : undefined)
     .withResponse();
   const h = response.headers;
   let text = "";
@@ -117,7 +126,8 @@ export function otariError(err: unknown): { status: number; code: string; messag
 /** Runs a program in Otari's code sandbox, with no model in the loop. */
 export async function runCode(step: string, code: string) {
   const started = Date.now();
-  const apiKey = process.env.OTARI_SERVICE_KEY || process.env.OTARI_API_KEY;
+  // The sandbox run is the app's own arithmetic, not a member's request, so it goes on the app's key.
+  const apiKey = process.env.OTARI_API_KEY || process.env.OTARI_SERVICE_KEY;
   const res = await fetch(`${OTARI_BASE_URL}/code/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Otari-Key": String(apiKey) },

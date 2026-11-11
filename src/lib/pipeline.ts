@@ -1,5 +1,5 @@
 import "server-only";
-import { chat, MODELS, type OtariTrace, otariError, runCode, usesServiceKey } from "./otari";
+import { chat, MODELS, memberHeaders, type OtariTrace, otariError, runCode, usesServiceKey } from "./otari";
 import { redact } from "./redact";
 
 export type Charge = {
@@ -40,7 +40,7 @@ export type StepEvent =
 
 type Emit = (e: StepEvent) => void;
 
-export type RunOptions = { member: string; skipRedaction?: boolean };
+export type RunOptions = { member: string; skipRedaction?: boolean; drill?: boolean };
 
 function parseJson<T>(text: string): T {
   const start = text.search(/[[{]/);
@@ -62,7 +62,7 @@ export async function analyze(statement: string, opts: RunOptions, emit: Emit) {
   // 2. Extract recurring charges and fees: the small model, behind a fallback policy.
   emit({ type: "step", id: "extract", label: "Finding recurring charges and fees", status: "running" });
   const extracted = await chat("extract", {
-    model: MODELS.extract,
+    model: opts.drill && MODELS.drill ? MODELS.drill : MODELS.extract,
     max_tokens: 2000,
     temperature: 0,
     reasoning_effort: "none" as never,
@@ -80,7 +80,7 @@ export async function analyze(statement: string, opts: RunOptions, emit: Emit) {
       },
       { role: "user", content: text },
     ],
-  });
+  }, memberHeaders(opts.member));
   emit({ type: "trace", trace: extracted.trace });
   const { charges } = parseJson<{ charges: Charge[] }>(extracted.text);
   emit({ type: "charges", charges });
@@ -199,6 +199,6 @@ async function researchOnce(batch: Charge[], index: number, opts: RunOptions) {
       },
       { role: "user", content: JSON.stringify(batch.map((s) => ({ service: s.service, paying: s.lastAmount }))) },
     ],
-  });
+  }, memberHeaders(opts.member));
   return { trace: looked.trace, research: parseJson<{ research: Research[] }>(looked.text).research };
 }
